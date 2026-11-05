@@ -1,0 +1,43 @@
+here
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function googleUser() {
+      return request.auth != null
+        && request.auth.token.firebase.sign_in_provider == 'google.com';
+    }
+
+    function admin() {
+      return googleUser()
+        && request.auth.uid == "YOUR_ADMIN_UID";
+    }
+
+    match /comments/{id} {
+
+      allow read: if true;
+
+      allow create: if googleUser()
+        && request.resource.data.keys().hasAll([
+          'uid', 'name', 'photo', 'message', 'createdAt'
+        ])
+        && request.resource.data.keys().hasOnly([
+          'uid', 'name', 'photo', 'message', 'createdAt'
+        ])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 100
+        && request.resource.data.photo is string
+        && request.resource.data.photo.size() <= 1000
+        && request.resource.data.message is string
+        && request.resource.data.message.size() > 0
+        && request.resource.data.message.size() <= 1000
+        && request.resource.data.createdAt == request.time;
+
+      allow delete: if admin();
+
+      allow update: if false;
+    }
+  }
+}
